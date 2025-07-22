@@ -365,6 +365,27 @@ const Index = () => {
                   <CardTitle>Управление сигнализацией</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedSectors.length === sectors.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedSectors(sectors.map(s => s.id));
+                            } else {
+                              setSelectedSectors([]);
+                            }
+                          }}
+                        />
+                        <span className="text-sm font-medium">Выбрать всё</span>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        Выбрано: {selectedSectors.length} из {sectors.length}
+                      </span>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-64 overflow-y-auto mb-4">
                     {sectors.map(sector => (
                       <div key={sector.id} className="flex items-center space-x-2">
