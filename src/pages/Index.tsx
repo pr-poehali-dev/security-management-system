@@ -12,15 +12,21 @@ interface SecuritySector {
   id: number;
   address: string;
   number: string;
-  status: 'protected' | 'unprotected' | 'emergency' | 'alarm';
+  status: 'protected' | 'unprotected' | 'emergency' | 'alarm' | 'low_battery' | 'contract_terminated' | 'contract_suspended';
   batteryLevel: number;
   customStatus?: { name: string; color: string };
   history: Array<{
     timestamp: Date;
     action: string;
-    type: 'protection' | 'emergency' | 'alarm' | 'battery';
+    type: 'protection' | 'emergency' | 'alarm' | 'battery' | 'contract';
   }>;
   contractStatus: 'active' | 'suspended' | 'terminated';
+}
+
+interface CustomStatus {
+  id: string;
+  name: string;
+  color: string;
 }
 
 const Index = () => {
@@ -31,22 +37,60 @@ const Index = () => {
   const [emergencyTime, setEmergencyTime] = useState<Date | null>(null);
   const [newSectorAddress, setNewSectorAddress] = useState('');
   const [newSectorNumber, setNewSectorNumber] = useState('');
+  const [customStatuses, setCustomStatuses] = useState<CustomStatus[]>([]);
+  const [newStatusName, setNewStatusName] = useState('');
+  const [newStatusColor, setNewStatusColor] = useState('#3B82F6');
 
   // Инициализация 425 участков
   useEffect(() => {
     const initialSectors: SecuritySector[] = [];
     for (let i = 1; i <= 425; i++) {
+      const batteryLevel = Math.floor(Math.random() * 100);
+      let status: SecuritySector['status'] = Math.random() > 0.7 ? 'protected' : 'unprotected';
+      
+      // Устанавливаем статус разряженной батареи если уровень <= 20
+      if (batteryLevel <= 20) {
+        status = 'low_battery';
+      }
+      
       initialSectors.push({
         id: i,
         address: `ул. Охранная, д. ${i}`,
         number: `${String(i).padStart(3, '0')}`,
-        status: Math.random() > 0.7 ? 'protected' : 'unprotected',
-        batteryLevel: Math.floor(Math.random() * 100),
+        status,
+        batteryLevel,
         history: [],
         contractStatus: 'active'
       });
     }
     setSectors(initialSectors);
+  }, []);
+
+  // Постепенная разрядка батарей (каждые 5 минут)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSectors(prev => prev.map(sector => {
+        if (sector.contractStatus !== 'active') return sector;
+        
+        const newBatteryLevel = Math.max(0, sector.batteryLevel - 1);
+        let newStatus = sector.status;
+        
+        // Проверяем статус батареи
+        if (newBatteryLevel <= 20 && sector.status !== 'emergency' && sector.status !== 'alarm') {
+          newStatus = 'low_battery';
+        } else if (newBatteryLevel > 20 && sector.status === 'low_battery') {
+          newStatus = 'unprotected';
+        }
+        
+        return {
+          ...sector,
+          batteryLevel: newBatteryLevel,
+          status: newStatus
+        };
+      }));
+    }, 300000); // 5 минут
+
+    return () => clearInterval(interval);
   }, []);
 
   // Автоматическая сигнализация каждые 10 минут
@@ -101,9 +145,19 @@ const Index = () => {
     setSectors(prev => prev.map(sector => {
       if (sector.id === id) {
         const newLevel = charge ? 100 : 0;
+        let newStatus = sector.status;
+        
+        // Обновляем статус в зависимости от уровня батареи
+        if (charge && sector.status === 'low_battery') {
+          newStatus = 'unprotected';
+        } else if (!charge || newLevel <= 20) {
+          newStatus = 'low_battery';
+        }
+        
         return {
           ...sector,
           batteryLevel: newLevel,
+          status: newStatus,
           history: [...sector.history, {
             timestamp: new Date(),
             action: charge ? 'Батарея заряжена' : 'Батарея разряжена',
@@ -121,6 +175,9 @@ const Index = () => {
       case 'unprotected': return 'bg-blue-500';
       case 'emergency': return 'bg-red-500';
       case 'alarm': return 'bg-orange-500';
+      case 'low_battery': return 'bg-orange-400';
+      case 'contract_terminated': return 'bg-gray-600';
+      case 'contract_suspended': return 'bg-yellow-600';
       default: return 'bg-gray-500';
     }
   };
@@ -131,6 +188,9 @@ const Index = () => {
       case 'unprotected': return 'Не на охране';
       case 'emergency': return 'ВЫЕЗД ГБР';
       case 'alarm': return 'СИГНАЛИЗАЦИЯ';
+      case 'low_battery': return 'РАЗРЯЖЕНО';
+      case 'contract_terminated': return 'РАСТОРГНУТ';
+      case 'contract_suspended': return 'ПРИОСТАНОВЛЕН';
       default: return 'Неизвестно';
     }
   };
@@ -138,11 +198,13 @@ const Index = () => {
   const protectedCount = sectors.filter(s => s.status === 'protected').length;
   const emergencyCount = sectors.filter(s => s.status === 'emergency').length;
   const alarmCount = sectors.filter(s => s.status === 'alarm').length;
+  const lowBatteryCount = sectors.filter(s => s.status === 'low_battery').length;
+  const contractIssuesCount = sectors.filter(s => s.status === 'contract_terminated' || s.status === 'contract_suspended').length;
 
   const addNewSector = () => {
     if (newSectorAddress && newSectorNumber) {
       const newSector: SecuritySector = {
-        id: sectors.length + 1,
+        id: Math.max(...sectors.map(s => s.id), 0) + 1,
         address: newSectorAddress,
         number: newSectorNumber,
         status: 'unprotected',
@@ -158,6 +220,72 @@ const Index = () => {
       setNewSectorAddress('');
       setNewSectorNumber('');
     }
+  };
+
+  const addCustomStatus = () => {
+    if (newStatusName && newStatusColor) {
+      const newStatus: CustomStatus = {
+        id: Date.now().toString(),
+        name: newStatusName,
+        color: newStatusColor
+      };
+      setCustomStatuses(prev => [...prev, newStatus]);
+      setNewStatusName('');
+      setNewStatusColor('#3B82F6');
+    }
+  };
+
+  const updateContractStatus = (id: number, newContractStatus: SecuritySector['contractStatus']) => {
+    setSectors(prev => prev.map(sector => {
+      if (sector.id === id) {
+        let newStatus: SecuritySector['status'] = sector.status;
+        let action = '';
+        
+        switch (newContractStatus) {
+          case 'suspended':
+            newStatus = 'contract_suspended';
+            action = 'Договор приостановлен';
+            break;
+          case 'terminated':
+            newStatus = 'contract_terminated';
+            action = 'Договор расторгнут';
+            break;
+          case 'active':
+            newStatus = 'unprotected';
+            action = 'Договор возобновлен';
+            break;
+        }
+        
+        return {
+          ...sector,
+          status: newStatus,
+          contractStatus: newContractStatus,
+          history: [...sector.history, {
+            timestamp: new Date(),
+            action,
+            type: 'contract' as const
+          }]
+        };
+      }
+      return sector;
+    }));
+  };
+
+  const setCustomStatus = (sectorId: number, customStatus: CustomStatus) => {
+    setSectors(prev => prev.map(sector => {
+      if (sector.id === sectorId) {
+        return {
+          ...sector,
+          customStatus,
+          history: [...sector.history, {
+            timestamp: new Date(),
+            action: `Установлен кастомный статус: ${customStatus.name}`,
+            type: 'protection' as const
+          }]
+        };
+      }
+      return sector;
+    }));
   };
 
   return (
@@ -206,7 +334,7 @@ const Index = () => {
 
           {/* Главная страница */}
           <TabsContent value="home" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Всего участков</CardTitle>
@@ -237,6 +365,17 @@ const Index = () => {
                 <CardContent>
                   <div className="text-2xl font-bold text-orange-600">{alarmCount}</div>
                   <p className="text-xs text-muted-foreground">срабатываний</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Разряжено</CardTitle>
+                  <Icon name="BatteryLow" className="h-4 w-4 text-orange-400" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-400">{lowBatteryCount}</div>
+                  <p className="text-xs text-muted-foreground">низкий заряд</p>
                 </CardContent>
               </Card>
               
@@ -277,6 +416,8 @@ const Index = () => {
                   .sort((a, b) => {
                     if (a.status === 'emergency' && b.status !== 'emergency') return -1;
                     if (a.status !== 'emergency' && b.status === 'emergency') return 1;
+                    if (a.status === 'low_battery' && b.status !== 'low_battery') return -1;
+                    if (a.status !== 'low_battery' && b.status === 'low_battery') return 1;
                     if (a.status === 'alarm' && b.status !== 'alarm') return -1;
                     if (a.status !== 'alarm' && b.status === 'alarm') return 1;
                     return a.id - b.id;
@@ -285,7 +426,8 @@ const Index = () => {
                   <Card 
                     key={sector.id} 
                     className={`cursor-pointer transition-all hover:shadow-md ${
-                      sector.status === 'emergency' ? 'border-red-500 shadow-red-100' : ''
+                      sector.status === 'emergency' ? 'border-red-500 shadow-red-100' : 
+                      sector.status === 'low_battery' ? 'border-orange-400 shadow-orange-100' : ''
                     }`}
                     onClick={() => setSelectedSector(sector)}
                   >
@@ -497,6 +639,51 @@ const Index = () => {
 
               <Card>
                 <CardHeader>
+                  <CardTitle>Кастомные статусы</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-end space-x-2">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium mb-1">Название статуса</label>
+                      <Input
+                        value={newStatusName}
+                        onChange={(e) => setNewStatusName(e.target.value)}
+                        placeholder="Например: На обслуживании"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Цвет</label>
+                      <Input
+                        type="color"
+                        value={newStatusColor}
+                        onChange={(e) => setNewStatusColor(e.target.value)}
+                        className="w-16 h-9"
+                      />
+                    </div>
+                    <Button onClick={addCustomStatus}>Добавить</Button>
+                  </div>
+                  
+                  {customStatuses.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Созданные статусы:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {customStatuses.map(status => (
+                          <Badge 
+                            key={status.id} 
+                            style={{ backgroundColor: status.color }}
+                            className="text-white"
+                          >
+                            {status.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
                   <CardTitle>Управление договорами</CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -511,9 +698,35 @@ const Index = () => {
                                sector.contractStatus === 'suspended' ? 'Приостановлен' : 'Расторгнут'}
                             </Badge>
                           </div>
-                          <div className="flex space-x-1">
-                            <Button size="sm" variant="outline">Приостановить</Button>
-                            <Button size="sm" variant="destructive">Расторгнуть</Button>
+                          <p className="text-xs text-gray-600 mb-2">{sector.address}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {sector.contractStatus === 'active' && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => updateContractStatus(sector.id, 'suspended')}
+                                >
+                                  Приостановить
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive"
+                                  onClick={() => updateContractStatus(sector.id, 'terminated')}
+                                >
+                                  Расторгнуть
+                                </Button>
+                              </>
+                            )}
+                            {sector.contractStatus !== 'active' && (
+                              <Button 
+                                size="sm" 
+                                variant="default"
+                                onClick={() => updateContractStatus(sector.id, 'active')}
+                              >
+                                Возобновить
+                              </Button>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -576,7 +789,58 @@ const Index = () => {
                   >
                     Зарядить батарею
                   </Button>
+                  <Button
+                    variant={selectedSector.batteryLevel >= 90 ? 'default' : 'outline'}
+                    disabled={selectedSector.batteryLevel < 90}
+                  >
+                    Батарея заряжена
+                  </Button>
                 </div>
+
+                {customStatuses.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Кастомные статусы:</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {customStatuses.map(status => (
+                        <Button
+                          key={status.id}
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setCustomStatus(selectedSector.id, status)}
+                          style={{ borderColor: status.color, color: status.color }}
+                        >
+                          {status.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedSector.customStatus && (
+                  <div className="flex items-center space-x-2">
+                    <span><strong>Кастомный статус:</strong></span>
+                    <Badge 
+                      style={{ backgroundColor: selectedSector.customStatus.color }}
+                      className="text-white"
+                    >
+                      {selectedSector.customStatus.name}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setSectors(prev => prev.map(sector => 
+                          sector.id === selectedSector.id 
+                            ? { ...sector, customStatus: undefined }
+                            : sector
+                        ));
+                        setSelectedSector({ ...selectedSector, customStatus: undefined });
+                      }}
+                    >
+                      Удалить
+                    </Button>
+                  </div>
+                )}
 
                 {selectedSector.history.length > 0 && (
                   <div>
