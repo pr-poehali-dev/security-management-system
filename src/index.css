@@ -1,38 +1,50 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 248 250 252;
+    --foreground: 15 23 42;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 255 255 255;
+    --card-foreground: 15 23 42;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 255 255 255;
+    --popover-foreground: 15 23 42;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 37 99 235;
+    --primary-foreground: 248 250 252;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 241 245 249;
+    --secondary-foreground: 15 23 42;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 248 250 252;
+    --muted-foreground: 100 116 139;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 241 245 249;
+    --accent-foreground: 15 23 42;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 239 68 68;
+    --destructive-foreground: 248 250 252;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 226 232 240;
+    --input: 226 232 240;
+    --ring: 37 99 235;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    /* GBR Theme Colors */
+    --gbr-primary: 30 64 175;
+    --gbr-secondary: 99 102 241;
+    --gbr-success: 34 197 94;
+    --gbr-warning: 245 158 11;
+    --gbr-danger: 239 68 68;
+    --gbr-info: 59 130 246;
+    --gbr-dark: 30 41 59;
+    --gbr-light: 248 250 252;
 
     --sidebar-background: 0 0% 98%;
 
@@ -97,5 +109,80 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+}
+
+@layer components {
+  .gbr-card {
+    @apply bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200;
+  }
+
+  .gbr-button-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+  }
+
+  .gbr-button-secondary {
+    @apply bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+  }
+
+  .gbr-button-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+  }
+
+  .gbr-button-success {
+    @apply bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+  }
+
+  .gbr-status-protected {
+    @apply bg-emerald-100 text-emerald-800 border border-emerald-200;
+  }
+
+  .gbr-status-unprotected {
+    @apply bg-blue-100 text-blue-800 border border-blue-200;
+  }
+
+  .gbr-status-emergency {
+    @apply bg-red-100 text-red-800 border border-red-200 animate-pulse;
+  }
+
+  .gbr-status-alarm {
+    @apply bg-amber-100 text-amber-800 border border-amber-200;
+  }
+
+  .gbr-status-low-battery {
+    @apply bg-orange-100 text-orange-800 border border-orange-200;
+  }
+
+  .gbr-gradient {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #6366f1 100%);
+  }
+
+  .gbr-glass {
+    @apply backdrop-blur-md bg-white/80 border border-white/20;
   }
 }
